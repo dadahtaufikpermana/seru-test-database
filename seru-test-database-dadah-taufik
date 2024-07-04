@@ -1,0 +1,123 @@
+-- create table teacher
+
+CREATE TABLE teachers (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    subject VARCHAR(50)
+);
+
+-- fill data into table teacher
+
+INSERT INTO teachers (name, subject) VALUES ('Pak Anton', 'Matematika');
+INSERT INTO teachers (name, subject) VALUES ('Bu Dina', 'Bahasa Indonesia');
+INSERT INTO teachers (name, subject) VALUES ('Pak Eko', 'Biologi');
+
+-- create table classes
+
+CREATE TABLE classes (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50),
+    teacher_id INT REFERENCES teachers(id)
+);
+
+-- fill data into table classes
+
+INSERT INTO classes (name, teacher_id) VALUES ('Kelas 10A', 1);
+INSERT INTO classes (name, teacher_id) VALUES ('Kelas 11B', 2);
+INSERT INTO classes (name, teacher_id) VALUES ('Kelas 12C', 3);
+
+-- create table students
+
+CREATE TABLE students (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    age INT,
+    class_id INT REFERENCES classes(id)
+);
+
+-- fill table data students
+
+INSERT INTO students (name, age, class_id) VALUES ('Budi', 16, 1);
+INSERT INTO students (name, age, class_id) VALUES ('Ani', 17, 2);
+INSERT INTO students (name, age, class_id) VALUES ('Candra', 18, 3);
+
+-- verification data table
+
+SELECT * FROM teachers;
+SELECT * FROM classes;
+SELECT * FROM students;
+
+-- 1. Tampilkan daftar siswa beserta kelas dan guru yang mengajar kelas tersebut.
+
+SELECT students.name AS student_name, classes.name AS class_name, teachers.name AS teacher_name
+FROM students
+JOIN classes ON students.class_id = classes.id
+JOIN teachers ON classes.teacher_id = teachers.id;
+
+-- 2. Tampilkan daftar kelas yang diajar oleh guru yang sama.
+
+SELECT teachers.name AS teacher_name, array_agg(classes.name) AS classes
+FROM teachers
+JOIN classes ON teachers.id = classes.teacher_id
+GROUP BY teachers.name;
+
+-- 3. buat query view untuk siswa, kelas, dan guru yang mengajar
+
+CREATE VIEW student_class_teacher AS
+SELECT students.name AS student_name, classes.name AS class_name, teachers.name AS teacher_name
+FROM students
+JOIN classes ON students.class_id = classes.id
+JOIN teachers ON classes.teacher_id = teachers.id;
+
+
+-- 4. buat query yang sama tapi menggunakan store_procedure
+
+-- Stored Procedure untuk Menampilkan Daftar Siswa Beserta Kelas dan Guru yang Mengajar Kelas Tersebut
+
+CREATE OR REPLACE FUNCTION get_student_class_teacher()
+RETURNS TABLE(student_name VARCHAR, class_name VARCHAR, teacher_name VARCHAR) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT students.name, classes.name, teachers.name
+    FROM students
+    JOIN classes ON students.class_id = classes.id
+    JOIN teachers ON classes.teacher_id = teachers.id;
+END; $$
+LANGUAGE plpgsql;
+
+-- Stored Procedure untuk Menampilkan Daftar Kelas yang Diajar oleh Guru yang Sama
+
+CREATE OR REPLACE FUNCTION get_teacher_classes()
+RETURNS TABLE(teacher_name VARCHAR, classes TEXT) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT teachers.name, array_to_string(array_agg(classes.name), ', ') AS classes
+    FROM teachers
+    JOIN classes ON teachers.id = classes.teacher_id
+    GROUP BY teachers.name;
+END; $$
+LANGUAGE plpgsql;
+
+-- 5. buat query input, yang akan memberikan warning error jika ada data yang sama pernah masuk
+
+CREATE OR REPLACE FUNCTION insert_student(student_name VARCHAR, student_age INT, student_class_id INT)
+RETURNS VOID AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM students WHERE name = student_name AND age = student_age AND class_id = student_class_id) THEN
+        RAISE NOTICE 'Student with the same data already exists.';
+    ELSE
+        INSERT INTO students (name, age, class_id) VALUES (student_name, student_age, student_class_id);
+    END IF;
+END; $$
+LANGUAGE plpgsql;
+
+
+
+
+
+
+
+
+
+
+
